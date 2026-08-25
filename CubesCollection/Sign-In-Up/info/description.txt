@@ -1,0 +1,1 @@
+Sign-In-Up provides the essentials for creating accounts and signing into them. I totally didn't use ChatGPT to write this.
