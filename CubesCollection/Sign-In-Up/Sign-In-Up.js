@@ -5,16 +5,17 @@
 
     class SignInUp {
         constructor() {
+            // =========================
+            // INTERNAL STATE
+            // =========================
+
             this._apiUrl = API_DEFAULT;
 
             this.token = "";
             this.username = "";
             this.userId = "";
 
-            // FIX: use _lastResponse so it does not collide
-            // with the lastResponse() reporter method.
-            this._lastResponse = "";
-
+            this.lastResponse = "";
             this.lastError = "";
             this.lastStatus = 0;
 
@@ -25,6 +26,7 @@
             this._lastBanCheck = false;
             this._accountStatus = "";
 
+            // Search system
             this._searchResults = "";
         }
 
@@ -38,6 +40,11 @@
                 color3: "#2355A0",
 
                 blocks: [
+
+                    // =========================
+                    // API
+                    // =========================
+
                     {
                         opcode: "setApiUrl",
                         blockType: Scratch.BlockType.COMMAND,
@@ -89,6 +96,10 @@
                         blockType: Scratch.BlockType.REPORTER,
                         text: "API status code"
                     },
+
+                    // =========================
+                    // ACCOUNT
+                    // =========================
 
                     {
                         opcode: "signUp",
@@ -152,6 +163,10 @@
                         text: "User ID"
                     },
 
+                    // =========================
+                    // ACCOUNT STATUS
+                    // =========================
+
                     {
                         opcode: "refreshUser",
                         blockType: Scratch.BlockType.COMMAND,
@@ -175,6 +190,10 @@
                         blockType: Scratch.BlockType.REPORTER,
                         text: "Ban reason"
                     },
+
+                    // =========================
+                    // ADMIN BAN SYSTEM
+                    // =========================
 
                     {
                         opcode: "banUser",
@@ -228,6 +247,10 @@
                         text: "last ban reason"
                     },
 
+                    // =========================
+                    // AUTHENTICATED REQUEST
+                    // =========================
+
                     {
                         opcode: "authenticatedPost",
                         blockType: Scratch.BlockType.REPORTER,
@@ -243,6 +266,10 @@
                             }
                         }
                     },
+
+                    // =========================
+                    // USER SEARCH
+                    // =========================
 
                     {
                         opcode: "searchUsers",
@@ -264,6 +291,10 @@
                 ]
             };
         }
+
+        // =========================
+        // API URL
+        // =========================
 
         setApiUrl(args) {
             let url = String(args.URL || "").trim();
@@ -289,13 +320,17 @@
             return this._apiUrl;
         }
 
+        // =========================
+        // RAW POST JSON
+        // =========================
+
         async postJson(args) {
             const url = String(args.URL || "").trim();
             const data = String(args.DATA || "{}");
 
             this.lastError = "";
             this.lastStatus = 0;
-            this._lastResponse = "";
+            this.lastResponse = "";
 
             if (!url) {
                 this.lastError = "URL cannot be empty";
@@ -307,10 +342,12 @@
 
                 const response = await fetch(url, {
                     method: "POST",
+
                     headers: {
                         "Content-Type": "application/json",
                         "Accept": "application/json"
                     },
+
                     body: JSON.stringify(parsed)
                 });
 
@@ -318,7 +355,7 @@
 
                 const text = await response.text();
 
-                this._lastResponse = text;
+                this.lastResponse = text;
 
                 if (!response.ok) {
                     this.lastError =
@@ -329,10 +366,14 @@
 
             } catch (error) {
                 this.lastError = String(error);
-                this._lastResponse = "";
+                this.lastResponse = "";
                 return "";
             }
         }
+
+        // =========================
+        // SIGN UP
+        // =========================
 
         async signUp(args) {
             this.lastError = "";
@@ -357,6 +398,10 @@
             }
         }
 
+        // =========================
+        // SIGN IN
+        // =========================
+
         async signIn(args) {
             this.lastError = "";
 
@@ -379,6 +424,10 @@
                 this.saveSession(result);
             }
         }
+
+        // =========================
+        // SAVE SESSION
+        // =========================
 
         saveSession(result) {
             this.token =
@@ -408,6 +457,10 @@
                 "";
         }
 
+        // =========================
+        // SIGN OUT
+        // =========================
+
         async signOut() {
             if (this.token) {
                 await this.request(
@@ -427,6 +480,10 @@
             this._banReason = "";
         }
 
+        // =========================
+        // ACCOUNT REPORTERS
+        // =========================
+
         loggedIn() {
             return this._loggedIn;
         }
@@ -442,6 +499,10 @@
         getUserId() {
             return this.userId;
         }
+
+        // =========================
+        // REFRESH USER
+        // =========================
 
         async refreshUser() {
             if (!this.token) {
@@ -499,6 +560,10 @@
             return this._banReason || "";
         }
 
+        // =========================
+        // ADMIN BAN
+        // =========================
+
         async banUser(args) {
             const userId =
                 String(args.USERID || "");
@@ -516,6 +581,10 @@
             );
         }
 
+        // =========================
+        // ADMIN UNBAN
+        // =========================
+
         async unbanUser(args) {
             const userId =
                 String(args.USERID || "");
@@ -528,6 +597,10 @@
                 true
             );
         }
+
+        // =========================
+        // CHECK BAN
+        // =========================
 
         async checkBan(args) {
             const userId =
@@ -564,6 +637,10 @@
             return this._banReason || "";
         }
 
+        // =========================
+        // AUTHENTICATED POST
+        // =========================
+
         async authenticatedPost(args) {
             const url =
                 String(args.URL || "");
@@ -598,19 +675,25 @@
                 this.lastError =
                     String(error);
 
-                this._lastResponse = "";
+                this.lastResponse = "";
                 this.lastStatus = 0;
 
                 return null;
             }
         }
 
+        // =========================
+        // SEARCH USERS
+        // =========================
+
         async searchUsers(args) {
             const query =
                 String(args.QUERY || "").trim();
 
+            // Clear previous results
             this._searchResults = "";
 
+            // Do nothing for empty searches
             if (!query) {
                 return;
             }
@@ -631,11 +714,11 @@
             ) {
                 this._searchResults =
                     result.users
-                        .map(user =>
-                            String(
+                        .map(user => {
+                            return String(
                                 user.username || ""
-                            ).trim()
-                        )
+                            ).trim();
+                        })
                         .filter(Boolean)
                         .join(", ");
             } else if (
@@ -647,9 +730,17 @@
             }
         }
 
+        // =========================
+        // SEARCH RESULTS
+        // =========================
+
         searchResults() {
             return this._searchResults;
         }
+
+        // =========================
+        // REQUEST HELPER
+        // =========================
 
         async request(
             endpoint,
@@ -659,11 +750,13 @@
         ) {
             this.lastError = "";
             this.lastStatus = 0;
-            this._lastResponse = "";
+            this.lastResponse = "";
 
             let url =
                 String(endpoint || "");
 
+            // Convert relative endpoint
+            // into the configured API URL.
             if (
                 !/^https?:\/\//i.test(url)
             ) {
@@ -685,6 +778,8 @@
                     "application/json";
             }
 
+            // Add authentication token
+            // when requested.
             if (
                 authenticated &&
                 this.token
@@ -716,7 +811,7 @@
                 const text =
                     await response.text();
 
-                this._lastResponse =
+                this.lastResponse =
                     text;
 
                 let result = null;
@@ -741,14 +836,18 @@
                 this.lastError =
                     String(error);
 
-                this._lastResponse = "";
+                this.lastResponse = "";
 
                 return null;
             }
         }
 
+        // =========================
+        // API INFORMATION
+        // =========================
+
         lastResponse() {
-            return this._lastResponse;
+            return this.lastResponse;
         }
 
         apiError() {
@@ -759,6 +858,10 @@
             return this.lastStatus;
         }
     }
+
+    // =========================
+    // REGISTER EXTENSION
+    // =========================
 
     Scratch.extensions.register(
         new SignInUp()
