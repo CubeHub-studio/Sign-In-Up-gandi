@@ -5,28 +5,26 @@
 
     class SignInUp {
         constructor() {
-            // =========================
-            // INTERNAL STATE
-            // =========================
-
             this._apiUrl = API_DEFAULT;
 
             this.token = "";
             this.username = "";
             this.userId = "";
 
-            // Fixed: underscore prevents collision with lastResponse()
+            // FIX: use _lastResponse so it does not collide
+            // with the lastResponse() reporter method.
             this._lastResponse = "";
+
             this.lastError = "";
             this.lastStatus = 0;
 
             this._loggedIn = false;
+
             this.banned = false;
             this._banReason = "";
             this._lastBanCheck = false;
             this._accountStatus = "";
 
-            // Search results
             this._searchResults = "";
         }
 
@@ -40,11 +38,6 @@
                 color3: "#2355A0",
 
                 blocks: [
-
-                    // =========================
-                    // API
-                    // =========================
-
                     {
                         opcode: "setApiUrl",
                         blockType: Scratch.BlockType.COMMAND,
@@ -96,10 +89,6 @@
                         blockType: Scratch.BlockType.REPORTER,
                         text: "API status code"
                     },
-
-                    // =========================
-                    // ACCOUNT
-                    // =========================
 
                     {
                         opcode: "signUp",
@@ -163,10 +152,6 @@
                         text: "User ID"
                     },
 
-                    // =========================
-                    // ACCOUNT STATUS
-                    // =========================
-
                     {
                         opcode: "refreshUser",
                         blockType: Scratch.BlockType.COMMAND,
@@ -190,10 +175,6 @@
                         blockType: Scratch.BlockType.REPORTER,
                         text: "Ban reason"
                     },
-
-                    // =========================
-                    // ADMIN BAN SYSTEM
-                    // =========================
 
                     {
                         opcode: "banUser",
@@ -247,10 +228,6 @@
                         text: "last ban reason"
                     },
 
-                    // =========================
-                    // AUTHENTICATED REQUEST
-                    // =========================
-
                     {
                         opcode: "authenticatedPost",
                         blockType: Scratch.BlockType.REPORTER,
@@ -266,10 +243,6 @@
                             }
                         }
                     },
-
-                    // =========================
-                    // SEARCH USERS
-                    // =========================
 
                     {
                         opcode: "searchUsers",
@@ -291,10 +264,6 @@
                 ]
             };
         }
-
-        // =========================
-        // API URL
-        // =========================
 
         setApiUrl(args) {
             let url = String(args.URL || "").trim();
@@ -320,10 +289,6 @@
             return this._apiUrl;
         }
 
-        // =========================
-        // RAW POST JSON
-        // =========================
-
         async postJson(args) {
             const url = String(args.URL || "").trim();
             const data = String(args.DATA || "{}");
@@ -342,12 +307,10 @@
 
                 const response = await fetch(url, {
                     method: "POST",
-
                     headers: {
                         "Content-Type": "application/json",
                         "Accept": "application/json"
                     },
-
                     body: JSON.stringify(parsed)
                 });
 
@@ -370,10 +333,6 @@
                 return "";
             }
         }
-
-        // =========================
-        // SIGN UP
-        // =========================
 
         async signUp(args) {
             this.lastError = "";
@@ -398,10 +357,6 @@
             }
         }
 
-        // =========================
-        // SIGN IN
-        // =========================
-
         async signIn(args) {
             this.lastError = "";
 
@@ -424,10 +379,6 @@
                 this.saveSession(result);
             }
         }
-
-        // =========================
-        // SAVE SESSION
-        // =========================
 
         saveSession(result) {
             this.token =
@@ -457,10 +408,6 @@
                 "";
         }
 
-        // =========================
-        // SIGN OUT
-        // =========================
-
         async signOut() {
             if (this.token) {
                 await this.request(
@@ -480,10 +427,6 @@
             this._banReason = "";
         }
 
-        // =========================
-        // ACCOUNT REPORTERS
-        // =========================
-
         loggedIn() {
             return this._loggedIn;
         }
@@ -499,10 +442,6 @@
         getUserId() {
             return this.userId;
         }
-
-        // =========================
-        // REFRESH USER
-        // =========================
 
         async refreshUser() {
             if (!this.token) {
@@ -560,10 +499,6 @@
             return this._banReason || "";
         }
 
-        // =========================
-        // ADMIN BAN
-        // =========================
-
         async banUser(args) {
             const userId =
                 String(args.USERID || "");
@@ -581,10 +516,6 @@
             );
         }
 
-        // =========================
-        // ADMIN UNBAN
-        // =========================
-
         async unbanUser(args) {
             const userId =
                 String(args.USERID || "");
@@ -597,10 +528,6 @@
                 true
             );
         }
-
-        // =========================
-        // CHECK BAN
-        // =========================
 
         async checkBan(args) {
             const userId =
@@ -636,10 +563,6 @@
         lastBanReason() {
             return this._banReason || "";
         }
-
-        // =========================
-        // AUTHENTICATED POST
-        // =========================
 
         async authenticatedPost(args) {
             const url =
@@ -681,10 +604,6 @@
                 return null;
             }
         }
-
-        // =========================
-        // SEARCH USERS
-        // =========================
 
         async searchUsers(args) {
             const query =
@@ -732,10 +651,6 @@
             return this._searchResults;
         }
 
-        // =========================
-        // REQUEST HELPER
-        // =========================
-
         async request(
             endpoint,
             body = {},
@@ -744,6 +659,7 @@
         ) {
             this.lastError = "";
             this.lastStatus = 0;
+            this._lastResponse = "";
 
             let url =
                 String(endpoint || "");
@@ -830,10 +746,6 @@
                 return null;
             }
         }
-
-        // =========================
-        // API INFORMATION
-        // =========================
 
         lastResponse() {
             return this._lastResponse;
