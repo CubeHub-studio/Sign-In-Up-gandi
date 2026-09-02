@@ -1,726 +1,849 @@
-class SignInUp {
-    constructor() {
-        // =========================
-        // API SETTINGS
-        // =========================
+(function (Scratch) {
+    "use strict";
 
-        this._apiUrl = "https://sign-in-up-api.inakuu69.workers.dev";
+    const API_DEFAULT = "https://api.here";
 
-        // =========================
-        // ACCOUNT DATA
-        // =========================
+    class SignInUp {
+        constructor() {
+            // =========================
+            // INTERNAL STATE
+            // =========================
 
-        this._token = "";
-        this._username = "";
-        this._userId = "";
+            this._apiUrl = API_DEFAULT;
 
-        this._loggedIn = false;
+            this.token = "";
+            this.username = "";
+            this.userId = "";
 
-        // =========================
-        // ACCOUNT STATUS
-        // =========================
+            this.lastResponse = "";
+            this.lastError = "";
+            this.lastStatus = 0;
 
-        this._banned = false;
-        this._accountStatus = "unknown";
-        this._banReason = "";
+            this._loggedIn = false;
+            this.banned = false;
+            this._banReason = "";
+            this._lastBanCheck = false;
+            this._accountStatus = "";
 
-        // =========================
-        // LAST REQUEST
-        // =========================
+            // Search results
+            this._searchResults = "";
+        }
 
-        this._lastResponse = "";
-        this._lastError = "";
-        this._lastStatus = 0;
+        getInfo() {
+            return {
+                id: "signInUp",
+                name: "Sign-In-Up",
 
-        // =========================
-        // SEARCH
-        // =========================
+                color1: "#4C97FF",
+                color2: "#3373CC",
+                color3: "#2355A0",
 
-        this._searchResults = "";
-    }
+                blocks: [
 
-    // =========================================================
-    // EXTENSION INFO
-    // =========================================================
+                    // =========================
+                    // API
+                    // =========================
 
-    getInfo() {
-        return {
-            id: "signInUp",
-
-            name: "Sign-In-Up",
-
-            color1: "#4C97FF",
-            color2: "#3373CC",
-            color3: "#2855A6",
-
-            blocks: [
-
-                // =========================
-                // API
-                // =========================
-
-                {
-                    opcode: "setAPI",
-                    blockType: Scratch.BlockType.COMMAND,
-                    text: "Set API URL to [URL]",
-                    arguments: {
-                        URL: {
-                            type: Scratch.ArgumentType.STRING,
-                            defaultValue:
-                                "https://sign-in-up-api.inakuu69.workers.dev"
+                    {
+                        opcode: "setApiUrl",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "set API URL to [URL]",
+                        arguments: {
+                            URL: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "https://api.here"
+                            }
                         }
-                    }
-                },
+                    },
 
-                {
-                    opcode: "getAPI",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "API URL"
-                },
+                    {
+                        opcode: "apiUrl",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "API URL"
+                    },
 
-                // =========================
-                // SIGN UP
-                // =========================
-
-                {
-                    opcode: "signup",
-                    blockType: Scratch.BlockType.COMMAND,
-                    text: "Sign Up username [USERNAME] password [PASSWORD]",
-                    arguments: {
-                        USERNAME: {
-                            type: Scratch.ArgumentType.STRING,
-                            defaultValue: "username"
-                        },
-
-                        PASSWORD: {
-                            type: Scratch.ArgumentType.STRING,
-                            defaultValue: "password"
+                    {
+                        opcode: "postJson",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "POST JSON [DATA] to [URL]",
+                        arguments: {
+                            DATA: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "{}"
+                            },
+                            URL: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "https://api.here"
+                            }
                         }
-                    }
-                },
+                    },
 
-                // =========================
-                // LOGIN
-                // =========================
+                    {
+                        opcode: "lastResponse",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "last API response"
+                    },
 
-                {
-                    opcode: "login",
-                    blockType: Scratch.BlockType.COMMAND,
-                    text: "Log In username [USERNAME] password [PASSWORD]",
-                    arguments: {
-                        USERNAME: {
-                            type: Scratch.ArgumentType.STRING,
-                            defaultValue: "username"
-                        },
+                    {
+                        opcode: "apiError",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "API error"
+                    },
 
-                        PASSWORD: {
-                            type: Scratch.ArgumentType.STRING,
-                            defaultValue: "password"
+                    {
+                        opcode: "apiStatus",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "API status code"
+                    },
+
+                    // =========================
+                    // ACCOUNT
+                    // =========================
+
+                    {
+                        opcode: "signUp",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "Sign Up username [USERNAME] password [PASSWORD]",
+                        arguments: {
+                            USERNAME: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "username"
+                            },
+                            PASSWORD: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "password"
+                            }
                         }
-                    }
-                },
+                    },
 
-                // =========================
-                // LOGOUT
-                // =========================
-
-                {
-                    opcode: "logout",
-                    blockType: Scratch.BlockType.COMMAND,
-                    text: "Log Out"
-                },
-
-                // =========================
-                // ACCOUNT
-                // =========================
-
-                {
-                    opcode: "username",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "Username"
-                },
-
-                {
-                    opcode: "userId",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "User ID"
-                },
-
-                {
-                    opcode: "loggedIn",
-                    blockType: Scratch.BlockType.BOOLEAN,
-                    text: "Logged In?"
-                },
-
-                // =========================
-                // SEARCH USERS
-                // =========================
-
-                {
-                    opcode: "searchUsers",
-                    blockType: Scratch.BlockType.COMMAND,
-                    text: "Search Users [QUERY]",
-                    arguments: {
-                        QUERY: {
-                            type: Scratch.ArgumentType.STRING,
-                            defaultValue: "username"
+                    {
+                        opcode: "signIn",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "Sign In username [USERNAME] password [PASSWORD]",
+                        arguments: {
+                            USERNAME: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "username"
+                            },
+                            PASSWORD: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "password"
+                            }
                         }
+                    },
+
+                    {
+                        opcode: "signOut",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "Sign Out"
+                    },
+
+                    {
+                        opcode: "loggedIn",
+                        blockType: Scratch.BlockType.BOOLEAN,
+                        text: "Logged In?"
+                    },
+
+                    {
+                        opcode: "authToken",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "Auth Token"
+                    },
+
+                    {
+                        opcode: "getUsername",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "Username"
+                    },
+
+                    {
+                        opcode: "getUserId",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "User ID"
+                    },
+
+                    // =========================
+                    // ACCOUNT STATUS
+                    // =========================
+
+                    {
+                        opcode: "refreshUser",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "Refresh user"
+                    },
+
+                    {
+                        opcode: "accountStatus",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "Account status"
+                    },
+
+                    {
+                        opcode: "isBanned",
+                        blockType: Scratch.BlockType.BOOLEAN,
+                        text: "Account banned?"
+                    },
+
+                    {
+                        opcode: "banReason",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "Ban reason"
+                    },
+
+                    // =========================
+                    // ADMIN BAN SYSTEM
+                    // =========================
+
+                    {
+                        opcode: "banUser",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "Ban user ID [USERID] reason [REASON]",
+                        arguments: {
+                            USERID: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: ""
+                            },
+                            REASON: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "Violation of rules"
+                            }
+                        }
+                    },
+
+                    {
+                        opcode: "unbanUser",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "Unban user ID [USERID]",
+                        arguments: {
+                            USERID: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: ""
+                            }
+                        }
+                    },
+
+                    {
+                        opcode: "checkBan",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "Check ban for user ID [USERID]",
+                        arguments: {
+                            USERID: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: ""
+                            }
+                        }
+                    },
+
+                    {
+                        opcode: "banCheckResult",
+                        blockType: Scratch.BlockType.BOOLEAN,
+                        text: "last ban check says banned?"
+                    },
+
+                    {
+                        opcode: "lastBanReason",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "last ban reason"
+                    },
+
+                    // =========================
+                    // AUTHENTICATED REQUEST
+                    // =========================
+
+                    {
+                        opcode: "authenticatedPost",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "POST JSON [DATA] to [URL] with token",
+                        arguments: {
+                            DATA: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "{}"
+                            },
+                            URL: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "https://api.here"
+                            }
+                        }
+                    },
+
+                    // =========================
+                    // SEARCH USERS
+                    // =========================
+
+                    {
+                        opcode: "searchUsers",
+                        blockType: Scratch.BlockType.COMMAND,
+                        text: "Search Users [QUERY]",
+                        arguments: {
+                            QUERY: {
+                                type: Scratch.ArgumentType.STRING,
+                                defaultValue: "username"
+                            }
+                        }
+                    },
+
+                    {
+                        opcode: "searchResults",
+                        blockType: Scratch.BlockType.REPORTER,
+                        text: "Search Results"
                     }
-                },
-
-                {
-                    opcode: "searchResults",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "Search Results"
-                },
-
-                // =========================
-                // ACCOUNT STATUS
-                // =========================
-
-                {
-                    opcode: "checkBan",
-                    blockType: Scratch.BlockType.COMMAND,
-                    text: "Check Ban Status"
-                },
-
-                {
-                    opcode: "banned",
-                    blockType: Scratch.BlockType.BOOLEAN,
-                    text: "Banned?"
-                },
-
-                {
-                    opcode: "accountStatus",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "Account Status"
-                },
-
-                {
-                    opcode: "banReason",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "Ban Reason"
-                },
-
-                // =========================
-                // REQUEST INFORMATION
-                // =========================
-
-                {
-                    opcode: "lastResponse",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "Last Response"
-                },
-
-                {
-                    opcode: "lastError",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "Last Error"
-                },
-
-                {
-                    opcode: "lastStatus",
-                    blockType: Scratch.BlockType.REPORTER,
-                    text: "Last HTTP Status"
-                }
-            ]
-        };
-    }
-
-    // =========================================================
-    // GENERIC REQUEST
-    // =========================================================
-
-    async request(endpoint, data = {}, authenticated = true) {
-
-        this._lastError = "";
-        this._lastStatus = 0;
-
-        try {
-
-            const headers = {
-                "Content-Type": "application/json"
+                ]
             };
+        }
 
-            // Add login token if needed
-            if (authenticated && this._token) {
-                headers["Authorization"] =
-                    "Bearer " + this._token;
+        // =========================
+        // API URL
+        // =========================
+
+        setApiUrl(args) {
+            let url = String(args.URL || "").trim();
+
+            url = url.replace(/\/+$/, "");
+
+            if (!url) {
+                this.lastError = "API URL cannot be empty";
+                return;
             }
 
-            const response = await fetch(
-                this._apiUrl + endpoint,
-                {
-                    method: "POST",
-                    headers: headers,
-                    body: JSON.stringify(data)
-                }
-            );
+            if (!/^https?:\/\//i.test(url)) {
+                this.lastError =
+                    "API URL must start with http:// or https://";
+                return;
+            }
 
-            this._lastStatus = response.status;
+            this._apiUrl = url;
+            this.lastError = "";
+        }
 
-            let result;
+        apiUrl() {
+            return this._apiUrl;
+        }
+
+        // =========================
+        // RAW POST JSON
+        // =========================
+
+        async postJson(args) {
+            const url = String(args.URL || "").trim();
+            const data = String(args.DATA || "{}");
+
+            this.lastError = "";
+            this.lastStatus = 0;
+            this.lastResponse = "";
 
             try {
-                result = await response.json();
+                const parsed = JSON.parse(data);
+
+                const response = await fetch(url, {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+
+                    body: JSON.stringify(parsed)
+                });
+
+                this.lastStatus = response.status;
+
+                const text = await response.text();
+
+                this.lastResponse = text;
+
+                if (!response.ok) {
+                    this.lastError =
+                        text || `HTTP ${response.status}`;
+                }
+
+                return text;
+
             } catch (error) {
-
-                this._lastError =
-                    "API returned invalid JSON.";
-
-                return null;
+                this.lastError = String(error);
+                this.lastResponse = "";
+                return "";
             }
-
-            this._lastResponse =
-                JSON.stringify(result);
-
-            return result;
-
-        } catch (error) {
-
-            this._lastError =
-                error && error.message
-                    ? error.message
-                    : String(error);
-
-            return null;
-        }
-    }
-
-    // =========================================================
-    // SET API
-    // =========================================================
-
-    setAPI(args) {
-
-        let url = String(args.URL || "").trim();
-
-        if (!url) {
-            return;
-        }
-
-        // Remove trailing slash
-        url = url.replace(/\/+$/, "");
-
-        this._apiUrl = url;
-    }
-
-    getAPI() {
-        return this._apiUrl;
-    }
-
-    // =========================================================
-    // SIGN UP
-    // =========================================================
-
-    async signup(args) {
-
-        const username =
-            String(args.USERNAME || "").trim();
-
-        const password =
-            String(args.PASSWORD || "");
-
-        if (!username || !password) {
-
-            this._lastError =
-                "Username and password are required.";
-
-            return;
-        }
-
-        const result = await this.request(
-            "/signup",
-            {
-                username: username,
-                password: password
-            },
-            false
-        );
-
-        if (!result) {
-            return;
-        }
-
-        if (result.success) {
-
-            this._username =
-                result.username || username;
-
-            this._userId =
-                result.userId
-                    ? String(result.userId)
-                    : "";
-
-            this._loggedIn = false;
-
-            this._banned = false;
-            this._accountStatus = "active";
-            this._banReason = "";
-
-        } else {
-
-            this._lastError =
-                result.error || "Sign up failed.";
-        }
-    }
-
-    // =========================================================
-    // LOGIN
-    // =========================================================
-
-    async login(args) {
-
-        const username =
-            String(args.USERNAME || "").trim();
-
-        const password =
-            String(args.PASSWORD || "");
-
-        if (!username || !password) {
-
-            this._lastError =
-                "Username and password are required.";
-
-            return;
-        }
-
-        const result = await this.request(
-            "/login",
-            {
-                username: username,
-                password: password
-            },
-            false
-        );
-
-        if (!result) {
-            return;
         }
 
         // =========================
-        // BANNED ACCOUNT
+        // SIGN UP
         // =========================
 
-        if (result.banned) {
+        async signUp(args) {
+            this.lastError = "";
 
-            this._loggedIn = false;
-            this._token = "";
+            const username =
+                String(args.USERNAME || "");
 
-            this._username = username;
+            const password =
+                String(args.PASSWORD || "");
 
-            this._banned = true;
+            const result = await this.request(
+                "/signup",
+                {
+                    username,
+                    password
+                },
+                false
+            );
 
-            this._accountStatus =
-                result.accountStatus || "banned";
-
-            this._banReason =
-                result.reason || "";
-
-            this._lastError =
-                result.error || "Account is banned.";
-
-            return;
+            if (result && result.success) {
+                this.saveSession(result);
+            }
         }
 
         // =========================
-        // SUCCESS
+        // SIGN IN
         // =========================
 
-        if (result.success) {
+        async signIn(args) {
+            this.lastError = "";
 
-            this._token =
+            const username =
+                String(args.USERNAME || "");
+
+            const password =
+                String(args.PASSWORD || "");
+
+            const result = await this.request(
+                "/login",
+                {
+                    username,
+                    password
+                },
+                false
+            );
+
+            if (result && result.success) {
+                this.saveSession(result);
+            }
+        }
+
+        // =========================
+        // SAVE SESSION
+        // =========================
+
+        saveSession(result) {
+            this.token =
                 result.token || "";
 
-            this._username =
-                result.username || username;
+            this.username =
+                result.username || "";
 
-            this._userId =
-                result.userId
-                    ? String(result.userId)
-                    : "";
+            this.userId =
+                result.userId || "";
 
             this._loggedIn =
-                Boolean(this._token);
+                Boolean(this.token);
 
-            this._banned = false;
+            this.banned =
+                Boolean(result.banned);
 
-            this._accountStatus = "active";
+            this._accountStatus =
+                result.accountStatus ||
+                (this.banned
+                    ? "banned"
+                    : "active");
 
-            this._banReason = "";
+            this._banReason =
+                result.reason ||
+                result.banReason ||
+                "";
+        }
 
-            this._lastError = "";
+        // =========================
+        // SIGN OUT
+        // =========================
 
-        } else {
+        async signOut() {
+            if (this.token) {
+                await this.request(
+                    "/logout",
+                    {},
+                    true
+                );
+            }
+
+            this.token = "";
+            this.username = "";
+            this.userId = "";
 
             this._loggedIn = false;
-            this._token = "";
-
-            this._lastError =
-                result.error || "Login failed.";
+            this.banned = false;
+            this._accountStatus = "";
+            this._banReason = "";
         }
-    }
 
-    // =========================================================
-    // LOGOUT
-    // =========================================================
+        // =========================
+        // ACCOUNT REPORTERS
+        // =========================
 
-    async logout() {
+        loggedIn() {
+            return this._loggedIn;
+        }
 
-        if (this._token) {
+        authToken() {
+            return this.token;
+        }
+
+        getUsername() {
+            return this.username;
+        }
+
+        getUserId() {
+            return this.userId;
+        }
+
+        // =========================
+        // REFRESH USER
+        // =========================
+
+        async refreshUser() {
+            if (!this.token) {
+                this._loggedIn = false;
+                return;
+            }
+
+            const result =
+                await this.request(
+                    "/user",
+                    {},
+                    true,
+                    "GET"
+                );
+
+            if (result && result.success) {
+                this._loggedIn = true;
+
+                this.username =
+                    result.username ||
+                    this.username;
+
+                this.userId =
+                    result.userId ||
+                    this.userId;
+
+                this.banned =
+                    Boolean(result.banned);
+
+                this._accountStatus =
+                    result.accountStatus ||
+                    (this.banned
+                        ? "banned"
+                        : "active");
+
+                this._banReason =
+                    result.reason ||
+                    result.banReason ||
+                    this._banReason;
+
+            } else {
+                this._loggedIn = false;
+            }
+        }
+
+        accountStatus() {
+            return this._accountStatus;
+        }
+
+        isBanned() {
+            return this.banned;
+        }
+
+        banReason() {
+            return this._banReason || "";
+        }
+
+        // =========================
+        // ADMIN BAN
+        // =========================
+
+        async banUser(args) {
+            const userId =
+                String(args.USERID || "");
+
+            const reason =
+                String(args.REASON || "");
 
             await this.request(
-                "/logout",
-                {},
+                "/admin/ban",
+                {
+                    userId,
+                    reason
+                },
                 true
             );
         }
 
-        this._token = "";
-        this._loggedIn = false;
+        // =========================
+        // ADMIN UNBAN
+        // =========================
 
-        this._username = "";
-        this._userId = "";
+        async unbanUser(args) {
+            const userId =
+                String(args.USERID || "");
 
-        this._banned = false;
-        this._accountStatus = "unknown";
-        this._banReason = "";
-    }
+            await this.request(
+                "/admin/unban",
+                {
+                    userId
+                },
+                true
+            );
+        }
 
-    // =========================================================
-    // USERNAME
-    // =========================================================
+        // =========================
+        // CHECK BAN
+        // =========================
 
-    username() {
-        return this._username;
-    }
+        async checkBan(args) {
+            const userId =
+                String(args.USERID || "");
 
-    // =========================================================
-    // USER ID
-    // =========================================================
+            const result =
+                await this.request(
+                    "/admin/check-ban",
+                    {
+                        userId
+                    },
+                    true
+                );
 
-    userId() {
-        return this._userId;
-    }
+            if (result) {
+                this._lastBanCheck =
+                    Boolean(result.banned);
 
-    // =========================================================
-    // LOGGED IN
-    // =========================================================
+                this._banReason =
+                    result.reason || "";
+            } else {
+                this._lastBanCheck = false;
+                this._banReason = "";
+            }
+        }
 
-    loggedIn() {
-        return this._loggedIn;
-    }
+        banCheckResult() {
+            return Boolean(
+                this._lastBanCheck
+            );
+        }
 
-    // =========================================================
-    // SEARCH USERS
-    // =========================================================
+        lastBanReason() {
+            return this._banReason || "";
+        }
 
-    async searchUsers(args) {
+        // =========================
+        // AUTHENTICATED POST
+        // =========================
 
-        const query =
-            String(args.QUERY || "").trim();
+        async authenticatedPost(args) {
+            const url =
+                String(args.URL || "");
 
-        // Empty search
-        if (!query) {
+            const data =
+                String(args.DATA || "{}");
+
+            try {
+                const parsed =
+                    JSON.parse(data);
+
+                let endpoint = url;
+
+                if (
+                    endpoint.startsWith(
+                        this._apiUrl
+                    )
+                ) {
+                    endpoint =
+                        endpoint.substring(
+                            this._apiUrl.length
+                        );
+                }
+
+                return await this.request(
+                    endpoint,
+                    parsed,
+                    true
+                );
+
+            } catch (error) {
+                this.lastError =
+                    String(error);
+
+                this.lastResponse = "";
+                this.lastStatus = 0;
+
+                return null;
+            }
+        }
+
+        // =========================
+        // SEARCH USERS
+        // =========================
+
+        async searchUsers(args) {
+            const query =
+                String(args.QUERY || "").trim();
 
             this._searchResults = "";
 
-            return;
+            if (!query) {
+                return;
+            }
+
+            const result =
+                await this.request(
+                    "/search-users",
+                    {
+                        query: query
+                    },
+                    false
+                );
+
+            if (
+                result &&
+                result.success &&
+                Array.isArray(result.users)
+            ) {
+                this._searchResults =
+                    result.users
+                        .map(user =>
+                            String(
+                                user.username || ""
+                            ).trim()
+                        )
+                        .filter(Boolean)
+                        .join(", ");
+            } else if (
+                result &&
+                result.error
+            ) {
+                this.lastError =
+                    result.error;
+            }
         }
 
-        const result = await this.request(
-            "/search-users",
-            {
-                query: query
-            },
-            false
-        );
-
-        // API failed
-        if (!result) {
-
-            this._searchResults = "";
-
-            return;
+        searchResults() {
+            return this._searchResults;
         }
 
-        // API returned success
-        if (
-            result.success &&
-            Array.isArray(result.users)
+        // =========================
+        // REQUEST HELPER
+        // =========================
+
+        async request(
+            endpoint,
+            body = {},
+            authenticated = false,
+            method = "POST"
         ) {
+            this.lastError = "";
+            this.lastStatus = 0;
 
-            this._searchResults =
-                result.users
-                    .map(user => {
+            let url =
+                String(endpoint || "");
 
-                        return String(
-                            user.username || ""
-                        ).trim();
+            if (
+                !/^https?:\/\//i.test(url)
+            ) {
+                if (!url.startsWith("/")) {
+                    url = "/" + url;
+                }
 
-                    })
-                    .filter(username => {
+                url =
+                    this._apiUrl + url;
+            }
 
-                        return username.length > 0;
+            const headers = {
+                "Accept":
+                    "application/json"
+            };
 
-                    })
-                    .join(", ");
+            if (method !== "GET") {
+                headers["Content-Type"] =
+                    "application/json";
+            }
 
-            return;
-        }
+            if (
+                authenticated &&
+                this.token
+            ) {
+                headers["Authorization"] =
+                    "Bearer " + this.token;
+            }
 
-        // Search failed
-        this._searchResults = "";
+            try {
+                const options = {
+                    method,
+                    headers
+                };
 
-        this._lastError =
-            result.error || "User search failed.";
-    }
+                if (method !== "GET") {
+                    options.body =
+                        JSON.stringify(body);
+                }
 
-    // =========================================================
-    // SEARCH RESULTS
-    // =========================================================
+                const response =
+                    await fetch(
+                        url,
+                        options
+                    );
 
-    searchResults() {
+                this.lastStatus =
+                    response.status;
 
-        return this._searchResults;
-    }
+                const text =
+                    await response.text();
 
-    // =========================================================
-    // CHECK BAN
-    // =========================================================
+                this.lastResponse =
+                    text;
 
-    async checkBan() {
+                let result = null;
 
-        if (!this._token) {
+                try {
+                    result =
+                        JSON.parse(text);
+                } catch {
+                    result = null;
+                }
 
-            this._banned = false;
-            this._accountStatus = "not logged in";
-            this._banReason = "";
+                if (!response.ok) {
+                    this.lastError =
+                        result?.error ||
+                        text ||
+                        `HTTP ${response.status}`;
+                }
 
-            return;
-        }
+                return result;
 
-        const result = await this.request(
-            "/user",
-            {},
-            true
-        );
+            } catch (error) {
+                this.lastError =
+                    String(error);
 
-        if (!result) {
-            return;
+                this.lastResponse = "";
+
+                return null;
+            }
         }
 
         // =========================
-        // BANNED
+        // API INFORMATION
         // =========================
 
-        if (result.banned) {
-
-            this._banned = true;
-
-            this._accountStatus =
-                result.accountStatus || "banned";
-
-            this._banReason =
-                result.reason || "";
-
-            this._loggedIn = false;
-
-            return;
+        lastResponse() {
+            return this.lastResponse;
         }
 
-        // =========================
-        // USER DATA
-        // =========================
-
-        if (
-            result.success &&
-            result.user
-        ) {
-
-            const user = result.user;
-
-            this._username =
-                user.username || this._username;
-
-            this._userId =
-                user.id !== undefined
-                    ? String(user.id)
-                    : this._userId;
-
-            this._banned =
-                Boolean(user.banned);
-
-            this._accountStatus =
-                user.banned
-                    ? "banned"
-                    : "active";
-
-            this._banReason =
-                user.reason || "";
-
-            return;
+        apiError() {
+            return this.lastError;
         }
 
-        if (result.error) {
-
-            this._lastError =
-                result.error;
+        apiStatus() {
+            return this.lastStatus;
         }
     }
 
-    // =========================================================
-    // BANNED
-    // =========================================================
+    Scratch.extensions.register(
+        new SignInUp()
+    );
 
-    banned() {
-        return this._banned;
-    }
-
-    // =========================================================
-    // ACCOUNT STATUS
-    // =========================================================
-
-    accountStatus() {
-        return this._accountStatus;
-    }
-
-    // =========================================================
-    // BAN REASON
-    // =========================================================
-
-    banReason() {
-        return this._banReason;
-    }
-
-    // =========================================================
-    // LAST RESPONSE
-    // =========================================================
-
-    lastResponse() {
-        return this._lastResponse;
-    }
-
-    // =========================================================
-    // LAST ERROR
-    // =========================================================
-
-    lastError() {
-        return this._lastError;
-    }
-
-    // =========================================================
-    // LAST HTTP STATUS
-    // =========================================================
-
-    lastStatus() {
-        return String(this._lastStatus);
-    }
-}
-
-
-// =============================================================
-// REGISTER EXTENSION
-// =============================================================
-
-Scratch.extensions.register(new SignInUp());
+})(Scratch);
