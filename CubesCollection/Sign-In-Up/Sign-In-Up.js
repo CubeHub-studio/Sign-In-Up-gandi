@@ -15,7 +15,8 @@
             this.username = "";
             this.userId = "";
 
-            this.lastResponse = "";
+            // Fixed: underscore prevents collision with lastResponse()
+            this._lastResponse = "";
             this.lastError = "";
             this.lastStatus = 0;
 
@@ -329,7 +330,12 @@
 
             this.lastError = "";
             this.lastStatus = 0;
-            this.lastResponse = "";
+            this._lastResponse = "";
+
+            if (!url) {
+                this.lastError = "URL cannot be empty";
+                return "";
+            }
 
             try {
                 const parsed = JSON.parse(data);
@@ -349,7 +355,7 @@
 
                 const text = await response.text();
 
-                this.lastResponse = text;
+                this._lastResponse = text;
 
                 if (!response.ok) {
                     this.lastError =
@@ -360,7 +366,7 @@
 
             } catch (error) {
                 this.lastError = String(error);
-                this.lastResponse = "";
+                this._lastResponse = "";
                 return "";
             }
         }
@@ -669,7 +675,7 @@
                 this.lastError =
                     String(error);
 
-                this.lastResponse = "";
+                this._lastResponse = "";
                 this.lastStatus = 0;
 
                 return null;
@@ -794,7 +800,7 @@
                 const text =
                     await response.text();
 
-                this.lastResponse =
+                this._lastResponse =
                     text;
 
                 let result = null;
@@ -819,7 +825,7 @@
                 this.lastError =
                     String(error);
 
-                this.lastResponse = "";
+                this._lastResponse = "";
 
                 return null;
             }
@@ -830,7 +836,7 @@
         // =========================
 
         lastResponse() {
-            return this.lastResponse;
+            return this._lastResponse;
         }
 
         apiError() {
